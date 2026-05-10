@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>北斗四代寻星罗盘</title>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            background: #1a1a2e; color: #eee;
+            font-family: system-ui, sans-serif;
+            text-align: center;
+            touch-action: manipulation;
+            padding: 10px;
+            min-height: 100vh;
+            display: flex; flex-direction: column; align-items: center;
+        }
+        #wechatTip {
+            display: none;
+            position: fixed; top:0; left:0; width:100%;
+            background:#000; color:#fff; z-index:9999;
+            padding:15px; text-align:center; font-size:16px;
+            line-height:1.6;
+        }
+        #wechatTip button {
+            margin-top:8px; background:#e74c3c; color:white;
+            border:none; padding:8px 20px; border-radius:20px;
+            font-size:14px; cursor:pointer;
+        }
+        #info {
+            font-size: 0.95rem;
+            margin: 5px 0;
+            background: rgba(255,255,255,0.1);
+            padding: 8px 12px;
+            border-radius: 10px;
+            width: 100%;
+        }
+        canvas {
+            display: block;
+            margin: 10px auto;
+            width: 90vw;
+            height: 90vw;
+            max-width: 400px;
+            max-height: 400px;
+            touch-action: none;
+        }
+        #hint {
+            font-size: 1.1rem;
+            font-weight: bold;
+            margin: 5px 0;
+            color: #f0c040;
+        }
+        #direction {
+            font-size: 1.2rem;
+            color: #4ecdc4;
+            margin: 5px 0;
+        }
+        button.permission {
+            background: #0f3460;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 25px;
+            font-size: 1rem;
+            margin: 8px;
+            cursor: pointer;
+            background: #e76f51;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <!-- 微信引导层 -->
+    <div id="wechatTip">
+        ⚠️ 微信内无法使用指南针 <br>
+        请点击右上角 <span style="font-size:20px;">···</span> → <strong>在浏览器打开</strong>
+        <br><button onclick="document.getElementById('wechatTip').style.display='none'">知道了</button>
+    </div>
+
+    <div id="info">📍 正在获取位置和方向...</div>
+    <div id="direction">🧭 手机指向：--</div>
+    <canvas id="compass" width="400" height="400"></canvas>
+    <div id="hint">🛰️ 转动手机，让金色标记对准正上方</div>
+    <button class="permission" onclick="requestPermission()">🔐 重新授权传感器 (iOS需点此)</button>
+
+    <script>
+        // ========== 微信环境检测 ==========
+        (function() {
+            if(navigator.userAgent.indexOf('MicroMessenger') !== -1) {
+                document.getElementById('wechatTip').style.display = 'block';
+            }
+        })();
+
+        // ========== 北斗四代户户通参数（亚太6C 东经130°） ==========
+        const SAT_LON = 130.0;
+        const SAT_NAME = "北斗四代户户通";
+        const SAT_TIP = "亚太6C 130°E";
+        
+        let userLat = null, userLon = null;
+        let satAzimuth = 0;
+        let satElevation = 0;
+        let deviceHeading = 0;  // 手机顶部指向的真北角度
+        let permissionGranted = false;
+
+        const canvas = document.getElementById('compass');
+        const ctx = canvas.getContext('2d');
+        const infoDiv = document.getElementById('info');
+        const hintDiv = document.getElementById('hint');
+        const dirDiv = document.getElementById('direction');
+
+        // ========== 方位角与仰角计算 ==========
+        function calcAngles(lat, lon, satLon) {
+            const toRad = Math.PI / 180;
+            const toDeg = 180 / Math.PI;
+            const latRad = lat * toRad;
+            const deltaLon = (lon - satLon) * toRad;
+            
+            let az = Math.atan2(Math.sin(deltaLon), 
+                     Math.cos(latRad) * Math.tan(0) - Math.sin(latRad) * Math.cos(deltaLon)) * toDeg;
+            if (az < 0) az += 360;
+
+            const r = 6371;
+            const R = 42164;
+            const cosLat = Math.cos(latRad);
+            const cosDelta = Math.cos(deltaLon);
+            const distance = Math.sqrt(r*r + R*R - 2*r*R*cosLat*cosDelta);
+            const el = Math.asin((R*R - r*r - distance*distance) / (2*r*distance)) * toDeg;
+            return { azimuth: az, elevation: el };
+        }
+
+        // ========== 获取方向描述 ==========
+        function getDirectionText(degrees) {
+            const dirs = ['北', '东北', '东', '东南', '南', '西南', '西', '西北'];
+            const index = Math.round(degrees / 45) % 8;
+            return dirs[index];
+        }
+
+        // ========== 获取位置 ==========
+        function getLocation() {
+            if (!navigator.geolocation) {
+                infoDiv.textContent = '❌ 浏览器不支持GPS';
+                return;
+            }
+            navigator.geolocation.getCurrentPosition(pos => {
+                userLat = pos.coords.latitude;
+                userLon = pos.coords.longitude;
+                updateSatData();
+                infoDiv.textContent = `📍 纬:${userLat.toFixed(4)} 经:${userLon.toFixed(4)}`;
+            }, err => {
+                infoDiv.textContent = '⚠️ 无法获取位置，使用演示坐标';
+                userLat = 33.7521;
+                userLon = 114.8677;
+                updateSatData();
+                infoDiv.textContent = `📍 演示坐标 纬:${userLat} 经:${userLon}`;
+            }, { enableHighAccuracy: true });
+        }
+
+        function updateSatData() {
+            if (userLat == null || userLon == null) return;
+            const res = calcAngles(userLat, userLon, SAT_LON);
+            satAzimuth = res.azimuth;
+            satElevation = res.elevation;
+            const dirName = getDirectionText(satAzimuth);
+            hintDiv.textContent = `🛰️ ${SAT_NAME} | ${SAT_TIP} | 方位:${satAzimuth.toFixed(1)}°(${dirName}) 仰角:${satElevation.toFixed(1)}°`;
+        }
+
+        // ========== 陀螺仪方向（绝对方向，相对真北） ==========
+        function handleOrientation(event) {
+            if (!permissionGranted) return;
+            
+            // iOS: webkitCompassHeading 直接是相对真北的角度
+            if (event.webkitCompassHeading !== undefined) {
+                deviceHeading = event.webkitCompassHeading;
+            }
+            // Android: alpha 是相对屏幕初始方向，需要修正
+            else if (event.alpha !== null) {
+                // Android 上 alpha 是相对初始方向，通常需要结合屏幕方向修正
+                // 竖屏时，alpha 值 + 屏幕修正 = 相对真北
+                let alpha = event.alpha;
+                // 大部分 Android 设备，alpha 逆时针增加，需要转换
+                deviceHeading = (360 - alpha) % 360;
+            }
+            
+            dirDiv.textContent = `🧭 手机指向：${deviceHeading.toFixed(1)}° (${getDirectionText(deviceHeading)})`;
+            drawCompass();
+        }
+
+        function requestPermission() {
+            if (typeof DeviceOrientationEvent !== 'undefined' && 
+                typeof DeviceOrientationEvent.requestPermission === 'function') {
+                DeviceOrientationEvent.requestPermission()
+                    .then(state => {
+                        if (state === 'granted') {
+                            permissionGranted = true;
+                            window.addEventListener('deviceorientation', handleOrientation);
+                            infoDiv.textContent = '✅ 传感器已授权，请转动手机';
+                        } else {
+                            infoDiv.textContent = '❌ 传感器权限被拒绝';
+                        }
+                    }).catch(() => {
+                        infoDiv.textContent = '⚠️ 权限请求错误';
+                    });
+            } else {
+                permissionGranted = true;
+                window.addEventListener('deviceorientation', handleOrientation);
+                infoDiv.textContent = '✅ 传感器已启动';
+            }
+        }
+
+        // ========== 绘制罗盘（底盘转动，指针固定） ==========
+        function drawCompass() {
+            const w = canvas.width;
+            const h = canvas.height;
+            const centerX = w / 2;
+            const centerY = h / 2;
+            const radius = Math.min(w, h) * 0.42;
+
+            ctx.clearRect(0, 0, w, h);
+
+            // --- 外圈固定装饰 ---
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius + 8, 0, 2 * Math.PI);
+            ctx.fillStyle = '#16213e';
+            ctx.fill();
+            ctx.strokeStyle = '#4ecdc4';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+
+            // --- 旋转的底盘（整个刻度盘根据手机指向旋转） ---
+            ctx.save();
+            ctx.translate(centerX, centerY);
+            // 关键：底盘旋转 -deviceHeading，让北方始终指向真北
+            const rotateAngle = -deviceHeading * Math.PI / 180;
+            ctx.rotate(rotateAngle);
+
+            // 绘制刻度线
+            for (let i = 0; i < 360; i += 5) {
+                const rad = i * Math.PI / 180;
+                const x1 = (radius - 5) * Math.sin(rad);
+                const y1 = -(radius - 5) * Math.cos(rad);
+                const x2 = (radius - 20) * Math.sin(rad);
+                const y2 = -(radius - 20) * Math.cos(rad);
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.strokeStyle = i % 15 === 0 ? '#f0c040' : '#555';
+                ctx.lineWidth = i % 15 === 0 ? 2 : 1;
+                ctx.stroke();
+            }
+
+            // 绘制方向标记（8个方向）
+            const dirs = [
+                { angle: 0, label: '北' },
+                { angle: 45, label: '东北' },
+                { angle: 90, label: '东' },
+                { angle: 135, label: '东南' },
+                { angle: 180, label: '南' },
+                { angle: 225, label: '西南' },
+                { angle: 270, label: '西' },
+                { angle: 315, label: '西北' }
+            ];
+            ctx.font = 'bold 12px system-ui';
+            ctx.fillStyle = '#fff';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            dirs.forEach(d => {
+                const rad = d.angle * Math.PI / 180;
+                const x = (radius - 30) * Math.sin(rad);
+                const y = -(radius - 30) * Math.cos(rad);
+                ctx.fillText(d.label, x, y);
+            });
+
+            // 绘制卫星方位标记（金色箭头，固定在底盘刻度上的 satAzimuth 位置）
+            const satRad = satAzimuth * Math.PI / 180;
+            const satX = radius * 0.75 * Math.sin(satRad);
+            const satY = -radius * 0.75 * Math.cos(satRad);
+            
+            // 金色圆点标记卫星位置
+            ctx.beginPath();
+            ctx.arc(satX, satY, 8, 0, 2 * Math.PI);
+            ctx.fillStyle = '#f0c040';
+            ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            // 金色箭头指向中心
+            const arrowLength = 20;
+            const arrowAngle = Math.atan2(-satY, -satX);
+            ctx.beginPath();
+            ctx.moveTo(satX + arrowLength * Math.cos(arrowAngle), satY + arrowLength * Math.sin(arrowAngle));
+            ctx.lineTo(satX, satY);
+            ctx.lineTo(satX - 6 * Math.cos(arrowAngle - 0.8), satY - 6 * Math.sin(arrowAngle - 0.8));
+            ctx.lineTo(satX - 6 * Math.cos(arrowAngle + 0.8), satY - 6 * Math.sin(arrowAngle + 0.8));
+            ctx.closePath();
+            ctx.fillStyle = '#f0c040';
+            ctx.fill();
+
+            ctx.restore();
+
+            // --- 固定不动的指示器（手机顶部方向，始终指向正上方） ---
+            // 正上方红色三角
+            ctx.beginPath();
+            ctx.moveTo(centerX, centerY - radius + 5);
+            ctx.lineTo(centerX - 12, centerY - radius - 15);
+            ctx.lineTo(centerX + 12, centerY - radius - 15);
+            ctx.closePath();
+            ctx.fillStyle = '#e74c3c';
+            ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // 中心圆点
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 10, 0, 2 * Math.PI);
+            ctx.fillStyle = '#fff';
+            ctx.fill();
+            ctx.strokeStyle = '#16213e';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // 中心写上"手机"
+            ctx.font = 'bold 10px system-ui';
+            ctx.fillStyle = '#16213e';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('手机', centerX, centerY);
+
+            // --- 对准检测 ---
+            // 计算卫星在底盘上的位置，与手机指向（正上方 = 0°）的角度差
+            let diff = satAzimuth - deviceHeading;
+            if (diff > 180) diff -= 360;
+            if (diff < -180) diff += 360;
+            const absDiff = Math.abs(diff);
+
+            // 显示角度差
+            ctx.font = '16px system-ui';
+            ctx.fillStyle = '#4ecdc4';
+            ctx.fillText(`差 ${absDiff.toFixed(1)}°`, centerX, centerY + 35);
+            
+            // 方向指示
+            let turnHint = '';
+            if (absDiff < 3) {
+                turnHint = '✅ 已对准！';
+            } else if (diff > 0) {
+                turnHint = '👉 向右转';
+            } else {
+                turnHint = '👈 向左转';
+            }
+            ctx.font = 'bold 14px system-ui';
+            ctx.fillStyle = '#fff';
+            ctx.fillText(turnHint, centerX, centerY + 55);
+
+            // 对准时变绿 + 提示音
+            if (absDiff < 3) {
+                document.body.style.backgroundColor = '#1b3b1b';
+                try {
+                    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.frequency.value = 800;
+                    gain.gain.value = 0.1;
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.12);
+                } catch(e) {}
+            } else {
+                document.body.style.backgroundColor = '#1a1a2e';
+            }
+        }
+
+        // ========== 启动 ==========
+        function init() {
+            getLocation();
+            requestPermission();
+            setInterval(() => {
+                if (userLat != null && userLon != null) {
+                    drawCompass();
+                }
+            }, 200);
+        }
+
+        init();
+    </script>
+</body>
+</html>
