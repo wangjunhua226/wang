@@ -12,18 +12,22 @@
             text-align: center;
             min-height: 100vh;
         }
+
+        /* ===== 微信提示条：小一点、往上移 ===== */
         #wechatTip {
             display: none;
             position: fixed; top:0; left:0; width:100%;
             background:#000; color:#fff; z-index:9999;
-            padding:15px; text-align:center; font-size:16px;
-            line-height:1.6;
+            padding: 8px 10px;           /* 缩小内边距 */
+            text-align:center; font-size:13px; /* 字号缩小 */
+            line-height:1.4;
         }
         #wechatTip button {
-            margin-top:8px; background:#e74c3c; color:white;
-            border:none; padding:8px 20px; border-radius:20px;
-            font-size:14px; cursor:pointer;
+            margin-top:4px; background:#e74c3c; color:white;
+            border:none; padding:6px 16px; border-radius:16px;
+            font-size:12px; cursor:pointer;
         }
+
         #cover {
             display: flex; flex-direction: column;
             align-items: center; justify-content: center;
@@ -94,11 +98,13 @@
         #direction {
             font-size: 1.1rem; color: #4ecdc4; margin: 5px;
         }
+
+        /* ===== 寻星罗盘往下移，不拥挤 ===== */
         canvas {
             display: block; margin: 10px auto;
             width: 90vw; height: 90vw;
             max-width: 400px; max-height: 400px;
-            margin-top: 30px;
+            margin-top: 50px;          /* 加大上边距 */
         }
         #hint {
             font-size: 1rem; font-weight: bold;
@@ -115,7 +121,7 @@
 <body>
     <div id="wechatTip">
         ⚠️ 微信内无法使用指南针 <br>
-        请点击右上角 <span style="font-size:20px;">···</span> → <strong>在浏览器打开</strong>
+        请点击右上角 <span style="font-size:18px;">···</span> → <strong>在浏览器打开</strong>
         <br><button onclick="document.getElementById('wechatTip').style.display='none'">知道了</button>
     </div>
 
@@ -123,7 +129,9 @@
         <h1>🛰️ 寻星仪</h1>
         <div class="btn-group">
             <button class="start" onclick="startApp()">📡 开始寻星</button>
-            <button class="video-btn" onclick="openVideo()">🎬 视频教程</button>
+            <button class="video-btn" onclick="openVideo('install')">📺 小锅盖安装教程</button>
+            <button class="video-btn" onclick="openVideo('connect')">🔌 设备连接教程</button>
+            <button class="video-btn" onclick="openVideo('signal')">📶 调信号视频</button>
         </div>
         <p>请到室外开阔处，点击上方按钮</p >
     </div>
@@ -151,10 +159,19 @@
             }
         })();
 
-        // ========== 视频播放功能 ==========
-        function openVideo() {
-            // ★★★ 把 YOUR_BVID 换成你的B站视频BV号 ★★★
-            var bvid = "BV1sr37zBEHk";
+        // ========== 视频播放功能（BV号在这里改） ==========
+        function openVideo(type) {
+            var bvid = "";
+            if (type === 'install') {
+                // *** 【组装视频】把 BV 号填在下面引号里 ***
+                bvid = "YOUR_INSTALL_BVID";
+            } else if (type === 'connect') {
+                // *** 【连接视频】把 BV 号填在下面引号里 ***
+                bvid = "YOUR_CONNECT_BVID";
+            } else if (type === 'signal') {
+                // *** 【调信号视频】把 BV 号填在下面引号里 ***
+                bvid = "YOUR_SIGNAL_BVID";
+            }
             var videoUrl = "https://player.bilibili.com/player.html?bvid=" + bvid;
             document.getElementById('videoPlayer').src = videoUrl;
             document.getElementById('videoModal').style.display = 'flex';
