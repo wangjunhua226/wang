@@ -1,3 +1,4 @@
+html
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -28,20 +29,20 @@
             font-size:12px; cursor:pointer;
         }
 
-        /* 页面容器 */
+        /* 通用页面布局 */
         .page {
             display: flex; flex-direction: column;
             align-items: center; justify-content: center;
-            height: 100vh; width: 100%;
+            min-height: 100vh; width: 100%;
             padding: 20px;
         }
         .page h1 {
-            font-size: 2.5rem; margin-bottom: 20px;
+            font-size: 2.2rem; margin-bottom: 20px;
             color: #f0c040; letter-spacing: 2px;
         }
         .page .btn-group {
             display: flex; flex-direction: column;
-            gap: 15px; width: 80%; max-width: 280px;
+            gap: 15px; width: 80%; max-width: 300px;
         }
         .page button {
             border: none; padding: 18px 0;
@@ -50,13 +51,10 @@
             width: 100%;
             transition: 0.2s;
         }
+        /* 蓝色主按钮（寻星仪、安装教程、购买设备都用这个） */
         .page button.primary {
             background: #4ecdc4; color: #1a1a2e;
             box-shadow: 0 4px 15px rgba(78,205,196,0.4);
-        }
-        .page button.secondary {
-            background: transparent; color: #aaa;
-            border: 2px solid #aaa;
         }
         .page button.back {
             background: transparent; color: #888;
@@ -133,23 +131,24 @@
         <br><button onclick="document.getElementById('wechatTip').style.display='none'">知道了</button>
     </div>
 
-    <!-- ==================== 首页：两个按钮 ==================== -->
+    <!-- ==================== 首页：三个蓝色按钮 ==================== -->
     <div id="homePage" class="page">
         <h1>🛰️ 寻星仪</h1>
         <div class="btn-group">
             <button class="primary" onclick="startApp()">📡 寻星仪</button>
-            <button class="secondary" onclick="showTutorial()">📺 安装教程</button>
+            <button class="primary" onclick="showTutorial()">📺 安装教程</button>
+            <button class="primary" onclick="openShop()">🛒 购买设备</button>
         </div>
         <p class="hint">请到室外开阔处，点击上方按钮</p >
     </div>
 
-    <!-- ==================== 教程页：三个按钮 ==================== -->
+    <!-- ==================== 教程页 ==================== -->
     <div id="tutorialPage" class="page" style="display:none;">
         <h1>📺 安装教程</h1>
         <div class="btn-group">
             <button class="primary" onclick="openVideo('install')">📡 小锅盖安装教程</button>
-            <button class="secondary" onclick="openVideo('connect')">🔌 设备连接教程</button>
-            <button class="secondary" onclick="openVideo('signal')">📶 调信号视频</button>
+            <button class="primary" onclick="openVideo('connect')">🔌 设备连接教程</button>
+            <button class="primary" onclick="openVideo('signal')">📶 调信号视频</button>
         </div>
         <button class="back" onclick="goHome()">← 返回首页</button>
     </div>
@@ -187,6 +186,13 @@
         function goHome() {
             document.getElementById('tutorialPage').style.display = 'none';
             document.getElementById('homePage').style.display = 'flex';
+        }
+
+        // ===== 购买链接跳转 =====
+        function openShop() {
+            // *** 【拼多多购买链接】把链接填在下面引号里 ***
+            var shopUrl = "https://mobile.yangkeduo.com/goods2.html?ps=H32WsjVb0X";
+            window.open(shopUrl, '_blank');
         }
 
         // ===== 视频播放 =====
@@ -410,4 +416,32 @@
             let diff = satAzimuth - deviceHeading;
             if (diff > 180) diff -= 360;
             if (diff < -180) diff += 360;
-            const absDiff = Math.a
+            const absDiff = Math.abs(diff);
+            ctx.font = '16px system-ui';
+            ctx.fillStyle = '#4ecdc4';
+            ctx.fillText(`差 ${absDiff.toFixed(1)}°`, cx, cy + 35);
+            ctx.font = 'bold 14px system-ui';
+            ctx.fillStyle = '#fff';
+            ctx.fillText(absDiff < 3 ? '✅ 已对准！' : (diff > 0 ? '👉 向右转' : '👈 向左转'), cx, cy + 55);
+
+            if (absDiff < 3) {
+                document.body.style.backgroundColor = '#1b3b1b';
+                try {
+                    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.frequency.value = 800;
+                    gain.gain.value = 0.1;
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.12);
+                } catch (e) {}
+            } else {
+                document.body.style.backgroundColor = '#1a1a2e';
+            }
+        }
+    </script>
+</body>
+</html>
+```
