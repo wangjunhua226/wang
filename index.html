@@ -49,7 +49,7 @@
             background: #4ecdc4; color: #1a1a2e;
             box-shadow: 0 4px 15px rgba(78,205,196,0.4);
         }
-        #cover button.video {
+        #cover button.video-btn {
             background: transparent; color: #aaa;
             border: 2px solid #aaa;
         }
@@ -57,6 +57,31 @@
             color: #888; margin: 15px 0 0;
             font-size: 0.9rem;
         }
+
+        /* 视频弹窗 */
+        #videoModal {
+            display: none;
+            position: fixed; top:0; left:0; width:100%; height:100%;
+            background: rgba(0,0,0,0.9); z-index:10000;
+            justify-content: center; align-items: center; flex-direction: column;
+        }
+        #videoModal .close-btn {
+            position: absolute; top: 10px; right: 25px;
+            font-size: 35px; color: white; cursor: pointer; z-index:10001;
+        }
+        .video-container {
+            position: relative;
+            padding-bottom: 56.25%;
+            height: 0;
+            overflow: hidden;
+            width: 90%;
+            max-width: 600px;
+        }
+        .video-container iframe {
+            position: absolute; top:0; left:0;
+            width: 100%; height: 100%;
+        }
+
         #mainApp {
             display: none; flex-direction: column;
             align-items: center; padding: 10px;
@@ -73,7 +98,6 @@
             display: block; margin: 10px auto;
             width: 90vw; height: 90vw;
             max-width: 400px; max-height: 400px;
-            /* 整体下移 */
             margin-top: 30px;
         }
         #hint {
@@ -99,9 +123,17 @@
         <h1>🛰️ 寻星仪</h1>
         <div class="btn-group">
             <button class="start" onclick="startApp()">📡 开始寻星</button>
-            <button class="video" onclick="alert('视频教程功能待开发，敬请期待！')">🎬 视频教程（待开发）</button>
+            <button class="video-btn" onclick="openVideo()">🎬 视频教程</button>
         </div>
         <p>请到室外开阔处，点击上方按钮</p >
+    </div>
+
+    <!-- 视频播放弹窗 -->
+    <div id="videoModal">
+        <span class="close-btn" onclick="closeVideo()">&times;</span>
+        <div class="video-container">
+            <iframe id="videoPlayer" src="" frameborder="0" allowfullscreen></iframe>
+        </div>
     </div>
 
     <div id="mainApp">
@@ -119,6 +151,20 @@
             }
         })();
 
+        // ========== 视频播放功能 ==========
+        function openVideo() {
+            // ★★★ 把 YOUR_BVID 换成你的B站视频BV号 ★★★
+            var bvid = "BV1sr37zBEHk";
+            var videoUrl = "https://player.bilibili.com/player.html?bvid=" + bvid;
+            document.getElementById('videoPlayer').src = videoUrl;
+            document.getElementById('videoModal').style.display = 'flex';
+        }
+        function closeVideo() {
+            document.getElementById('videoPlayer').src = "";
+            document.getElementById('videoModal').style.display = 'none';
+        }
+
+        // ========== 卫星参数 ==========
         const SAT_LON = 130.0;
         const SAT_NAME = "北斗四代户户通";
         
@@ -218,7 +264,6 @@
             const radius = Math.min(w, h) * 0.42;
             ctx.clearRect(0, 0, w, h);
             
-            // 底盘背景
             ctx.beginPath();
             ctx.arc(cx, cy, radius + 8, 0, 2 * Math.PI);
             ctx.fillStyle = '#16213e';
@@ -227,12 +272,9 @@
             ctx.lineWidth = 3;
             ctx.stroke();
 
-            // ===== 旋转的刻度盘（随手机方向转动） =====
             ctx.save();
             ctx.translate(cx, cy);
             ctx.rotate(-deviceHeading * Math.PI / 180);
-            
-            // 刻度线
             for (let i = 0; i < 360; i += 5) {
                 const rad = i * Math.PI / 180;
                 const x1 = (radius - 5) * Math.sin(rad);
@@ -248,7 +290,6 @@
             }
             ctx.restore();
 
-            // ===== 不旋转的方向文字（始终正对用户） =====
             const dirs = [
                 { a: 0, l: '北' }, { a: 45, l: '东北' },
                 { a: 90, l: '东' }, { a: 135, l: '东南' },
@@ -259,7 +300,6 @@
             ctx.fillStyle = '#ffffff';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            
             dirs.forEach(d => {
                 const screenAngle = (d.a - deviceHeading) * Math.PI / 180;
                 const textRadius = radius - 30;
@@ -268,37 +308,29 @@
                 ctx.fillText(d.l, tx, ty);
             });
 
-            // ===== 计算卫星在屏幕上的位置 =====
             const satScreenAngle = (satAzimuth - deviceHeading) * Math.PI / 180;
             const satScreenX = cx + (radius - 10) * Math.sin(satScreenAngle);
             const satScreenY = cy - (radius - 10) * Math.cos(satScreenAngle);
 
-            // ===== 金色指针：从中心指向卫星（随手机转动而动） =====
+            const pointerLength = radius * 0.5;
+            const pointerEndX = cx;
+            const pointerEndY = cy - pointerLength;
             ctx.beginPath();
             ctx.moveTo(cx, cy);
-            ctx.lineTo(satScreenX, satScreenY);
+            ctx.lineTo(pointerEndX, pointerEndY);
             ctx.strokeStyle = '#f0c040';
             ctx.lineWidth = 4;
             ctx.stroke();
 
-            // 指针末端小三角
             const arrowSize = 10;
-            const arrowAngle = satScreenAngle;
             ctx.beginPath();
-            ctx.moveTo(satScreenX, satScreenY);
-            ctx.lineTo(
-                satScreenX - arrowSize * Math.sin(arrowAngle - 0.6),
-                satScreenY + arrowSize * Math.cos(arrowAngle - 0.6)
-            );
-            ctx.lineTo(
-                satScreenX - arrowSize * Math.sin(arrowAngle + 0.6),
-                satScreenY + arrowSize * Math.cos(arrowAngle + 0.6)
-            );
+            ctx.moveTo(pointerEndX, pointerEndY);
+            ctx.lineTo(pointerEndX - 8, pointerEndY + 14);
+            ctx.lineTo(pointerEndX + 8, pointerEndY + 14);
             ctx.closePath();
             ctx.fillStyle = '#f0c040';
             ctx.fill();
 
-            // ===== 红色三角形固定在卫星位置（不动） =====
             ctx.beginPath();
             ctx.moveTo(satScreenX, satScreenY - 16);
             ctx.lineTo(satScreenX - 12, satScreenY + 8);
@@ -310,13 +342,11 @@
             ctx.lineWidth = 2;
             ctx.stroke();
 
-            // 卫星图标画在红色三角上方
-            ctx.font = '22px system-ui';
+            ctx.font = '44px system-ui';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'bottom';
             ctx.fillText('🛰️', satScreenX, satScreenY - 18);
 
-            // 中心圆点（代表手机）
             ctx.beginPath();
             ctx.arc(cx, cy, 8, 0, 2 * Math.PI);
             ctx.fillStyle = '#ffffff';
@@ -330,7 +360,6 @@
             ctx.textBaseline = 'middle';
             ctx.fillText('手机', cx, cy);
 
-            // ===== 对准检测 =====
             let diff = satAzimuth - deviceHeading;
             if (diff > 180) diff -= 360;
             if (diff < -180) diff += 360;
