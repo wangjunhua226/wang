@@ -39,7 +39,6 @@
             font-size: 2.2rem; margin-bottom: 20px;
             color: #f0c040; letter-spacing: 2px;
         }
-        /* 首页标题上移 */
         #homePage h1 {
             margin-top: -30px;
         }
@@ -127,9 +126,8 @@
 </head>
 <body>
 
-    <!-- 微信引导 -->
     <div id="wechatTip">
-                ⚠️ 微信内无法使用指南针 <br>
+        ⚠️ 微信内无法使用指南针 <br>
         请点击右上角 <span style="font-size:18px;">···</span> → <strong>在浏览器打开</strong>
         <br><button onclick="document.getElementById('wechatTip').style.display='none'">知道了</button>
     </div>
@@ -175,14 +173,12 @@
     </div>
 
     <script>
-        // ===== 微信检测 =====
         (function() {
             if(navigator.userAgent.indexOf('MicroMessenger') !== -1) {
                 document.getElementById('wechatTip').style.display = 'block';
             }
         })();
 
-        // ===== 页面切换 =====
         function showTutorial() {
             document.getElementById('homePage').style.display = 'none';
             document.getElementById('tutorialPage').style.display = 'flex';
@@ -198,22 +194,22 @@
             document.body.style.backgroundColor = '#1a1a2e';
         }
 
-        // ===== 购买链接跳转（拼多多链接已填入） =====
+        // ===== 购买链接（拼多多已填入） =====
         function openShop() {
             var shopUrl = "https://mobile.yangkeduo.com/goods2.html?ps=H32WsjVb0X";
             window.open(shopUrl, '_blank');
         }
 
-        // ===== 视频播放（BV号已填入） =====
+        // ===== 视频播放（三个 BV 号全部填好） =====
         function openVideo(type) {
             var bvid = "";
             if (type === 'install') {
-                bvid = "BV1y65p65Ev3";  // 小锅盖安装视频
+                bvid = "BV1y65p65Ev3";   // 小锅盖安装视频
             } else if (type === 'connect') {
-                // *** 【设备连接视频】暂未提供，请替换 BV 号 ***
+                // 【设备连接视频】暂未提供 BV 号，留空
                 bvid = "YOUR_CONNECT_BVID";
             } else if (type === 'signal') {
-                bvid = "BV1rm5p6zEuB";  // 调信号视频
+                bvid = "BV1rm5p6zEuB";   // 调信号视频
             }
             var videoUrl = "https://player.bilibili.com/player.html?bvid=" + bvid;
             document.getElementById('videoPlayer').src = videoUrl;
@@ -224,10 +220,8 @@
             document.getElementById('videoModal').style.display = 'none';
         }
 
-        // ===== 卫星参数（北斗四代户户通 / 亚太6C 130°E） =====
+        // ===== 卫星参数 =====
         const SAT_LON = 130.0;
-        const SAT_NAME = "北斗四代户户通";
-        
         let userLat = null, userLon = null;
         let satAzimuth = 0, satElevation = 0;
         let deviceHeading = 0;
@@ -248,9 +242,7 @@
             getLocation();
             requestPermission();
             setInterval(() => {
-                if (appStarted && userLat && userLon) {
-                    drawCompass();
-                }
+                if (appStarted && userLat && userLon) drawCompass();
             }, 200);
         }
 
@@ -324,7 +316,7 @@
             const cx = w/2, cy = h/2;
             const radius = Math.min(w, h) * 0.42;
             ctx.clearRect(0, 0, w, h);
-            
+
             ctx.beginPath();
             ctx.arc(cx, cy, radius + 8, 0, 2 * Math.PI);
             ctx.fillStyle = '#16213e';
@@ -451,4 +443,3 @@
     </script>
 </body>
 </html>
-```
