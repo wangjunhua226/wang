@@ -200,14 +200,13 @@
             window.open(shopUrl, '_blank');
         }
 
-        // ===== 视频播放（三个 BV 号全部填好） =====
+        // ===== 视频播放 =====
         function openVideo(type) {
             var bvid = "";
             if (type === 'install') {
                 bvid = "BV1y65p65Ev3";   // 小锅盖安装视频
             } else if (type === 'connect') {
-                // 【设备连接视频】暂未提供 BV 号，留空
-                bvid = "YOUR_CONNECT_BVID";
+                bvid = "YOUR_CONNECT_BVID";   // 设备连接视频（待补充）
             } else if (type === 'signal') {
                 bvid = "BV1rm5p6zEuB";   // 调信号视频
             }
@@ -220,8 +219,9 @@
             document.getElementById('videoModal').style.display = 'none';
         }
 
-        // ===== 卫星参数 =====
-        const SAT_LON = 130.0;
+        // ===== 卫星参数（中星9号 92.2°E） =====
+        const SAT_LON = 92.2;
+        const SAT_NAME = "中星9号";
         let userLat = null, userLon = null;
         let satAzimuth = 0, satElevation = 0;
         let deviceHeading = 0;
@@ -281,7 +281,7 @@
             if (!userLat || !userLon) return;
             const res = calcAngles(userLat, userLon, SAT_LON);
             satAzimuth = res.azimuth; satElevation = res.elevation;
-            hintDiv.textContent = `🛰️ 方位角 ${satAzimuth.toFixed(1)}°`;
+            hintDiv.textContent = `🛰️ 中星9号 方位角 ${satAzimuth.toFixed(1)}°`;
         }
 
         function handleOrientation(event) {
@@ -443,3 +443,4 @@
     </script>
 </body>
 </html>
+```
