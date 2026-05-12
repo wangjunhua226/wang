@@ -139,11 +139,11 @@
         <p class="hint">请到室外开阔处，点击上方按钮</p >
     </div>
 
-    <!-- 教程页 -->
+    <!-- 教程页（只保留安装和找信号） -->
     <div id="tutorialPage" class="page" style="display:none;">
         <h1>📺 安装教程</h1>
         <div class="btn-group">
-            <button class="primary" onclick="openVideo('connect')">🔌 设备连接教程</button>
+            <button class="primary" onclick="openVideo('install')">📡 小锅盖安装教程</button>
             <button class="primary" onclick="openVideo('signal')">📶 调信号视频</button>
         </div>
         <button class="back" onclick="goHome()">← 返回首页</button>
@@ -156,7 +156,8 @@
             <iframe id="videoPlayer" src="" frameborder="0" allowfullscreen></iframe>
         </div>
     </div>
-   <!-- 寻星主界面 -->
+
+    <!-- 寻星主界面 -->
     <div id="mainApp">
         <div id="info">📍 正在获取位置和方向...</div>
         <div id="direction">🧭 手机指向：--</div>
@@ -197,10 +198,10 @@
         // 视频播放
         function openVideo(type) {
             var bvid = "";
-            if (type === 'connect') {
-                bvid = "YOUR_CONNECT_BVID";
+            if (type === 'install') {
+                bvid = "BV1y65p65Ev3";   // 小锅盖安装教程
             } else if (type === 'signal') {
-                bvid = "BV1rm5p6zEuB";
+                bvid = "BV1rm5p6zEuB";   // 调信号视频
             }
             var videoUrl = "https://player.bilibili.com/player.html?bvid=" + bvid;
             document.getElementById('videoPlayer').src = videoUrl;
@@ -211,7 +212,7 @@
             document.getElementById('videoModal').style.display = 'none';
         }
 
-        // ===== 卫星参数（中星9号 92.2°E） =====
+        // ===== 卫星参数（中星9号 92.2°E，西南方向） =====
         const SAT_LON = 92.2;
         const SAT_NAME = "中星9号 (92.2°E)";
         let userLat = null, userLon = null;
@@ -227,7 +228,8 @@
         const dirDiv = document.getElementById('direction');
 
         function startApp() {
-            document.getElementById('homePage').style.display = 'none';
+
+        document.getElementById('homePage').style.display = 'none';
             document.getElementById('tutorialPage').style.display = 'none';
             document.getElementById('mainApp').style.display = 'flex';
             appStarted = true;
@@ -238,18 +240,17 @@
             }, 200);
         }
 
-        // ===== 方位角计算（已修正，面向西南） =====
+        // ===== 方位角计算（已修正：西南方向） =====
         function calcAngles(lat, lon, satLon) {
             const toRad = Math.PI / 180;
             const toDeg = 180 / Math.PI;
 
-            // 修正方位角算法
-            const dLon = (satLon - lon) * toRad;
+            // 关键修正：dLon = 本站经度 - 卫星经度
+            const dLon = (lon - satLon) * toRad;
             const latRad = lat * toRad;
 
-            // 标准卫星方位角公式
-            const azRad = Math.atan2(Math.tan(dLon), Math.sin(latRad));
-            let az = azRad * toDeg + 180;
+            // 方位角公式 A = atan2(tan(dLon), sin(lat)) + 180°
+            let az = Math.atan2(Math.tan(dLon), Math.sin(latRad)) * toDeg + 180;
             if (az < 0) az += 360;
             if (az >= 360) az -= 360;
 
@@ -257,8 +258,8 @@
             const r = 6371;
             const R = 42164;
             const cosLat = Math.cos(latRad);
-            const cosLon = Math.cos(dLon);
-            const distance = Math.sqrt(r*r + R*R - 2*r*R*cosLat*cosLon);
+            const cosDLon = Math.cos(dLon);
+            const distance = Math.sqrt(r*r + R*R - 2*r*R*cosLat*cosDLon);
             const el = Math.asin((R*R - r*r - distance*distance) / (2*r*distance)) * toDeg;
 
             return { azimuth: az, elevation: el };
@@ -289,7 +290,7 @@
             if (!userLat || !userLon) return;
             const res = calcAngles(userLat, userLon, SAT_LON);
             satAzimuth = res.azimuth; satElevation = res.elevation;
-            hintDiv.textContent = `🛰️ 中星9号 (92.2°E) 方位角 ${satAzimuth.toFixed(1)}°`;
+            hintDiv.textContent = `🛰️ 中星9号 (92.2°E) 方位角 ${satAzimuth.toFixed(1)}° (${getDirectionText(satAzimuth)})`;
         }
 
         function handleOrientation(event) {
