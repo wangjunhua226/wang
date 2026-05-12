@@ -148,6 +148,7 @@
         </div>
         <button class="back" onclick="goHome()">← 返回首页</button>
     </div>
+
     <!-- 视频弹窗 -->
     <div id="videoModal">
         <span class="close-btn" onclick="closeVideo()">&times;</span>
@@ -155,8 +156,7 @@
             <iframe id="videoPlayer" src="" frameborder="0" allowfullscreen></iframe>
         </div>
     </div>
-
-    <!-- 寻星主界面 -->
+   <!-- 寻星主界面 -->
     <div id="mainApp">
         <div id="info">📍 正在获取位置和方向...</div>
         <div id="direction">🧭 手机指向：--</div>
@@ -188,7 +188,7 @@
             document.body.style.backgroundColor = '#1a1a2e';
         }
 
-        // 购买链接（拼多多）
+        // 购买链接
         function openShop() {
             var shopUrl = "https://mobile.yangkeduo.com/goods2.html?ps=H32WsjVb0X";
             window.open(shopUrl, '_blank');
@@ -238,28 +238,27 @@
             }, 200);
         }
 
-        // ===== 修正后的方位角/仰角计算 =====
+        // ===== 方位角计算（已修正，面向西南） =====
         function calcAngles(lat, lon, satLon) {
             const toRad = Math.PI / 180;
             const toDeg = 180 / Math.PI;
 
-            // 修正点1：使用正确的计算方法
-            const lonDiff = (lon - satLon) * toRad;
+            // 修正方位角算法
+            const dLon = (satLon - lon) * toRad;
             const latRad = lat * toRad;
 
-            // 计算方位角
-            // 公式: az = atan2(sin(lonDiff), cos(lat)*tan(0) - sin(lat)*cos(lonDiff))
-            const y = Math.sin(lonDiff);
-            const x = Math.cos(latRad) * 0 - Math.sin(latRad) * Math.cos(lonDiff);
-            let az = Math.atan2(y, x) * toDeg;
+            // 标准卫星方位角公式
+            const azRad = Math.atan2(Math.tan(dLon), Math.sin(latRad));
+            let az = azRad * toDeg + 180;
             if (az < 0) az += 360;
+            if (az >= 360) az -= 360;
 
-            // 计算仰角
+            // 仰角计算
             const r = 6371;
             const R = 42164;
             const cosLat = Math.cos(latRad);
-            const cosLonDiff = Math.cos(lonDiff);
-            const distance = Math.sqrt(r*r + R*R - 2*r*R*cosLat*cosLonDiff);
+            const cosLon = Math.cos(dLon);
+            const distance = Math.sqrt(r*r + R*R - 2*r*R*cosLat*cosLon);
             const el = Math.asin((R*R - r*r - distance*distance) / (2*r*distance)) * toDeg;
 
             return { azimuth: az, elevation: el };
@@ -278,7 +277,9 @@
                 updateSatData();
                 infoDiv.textContent = `📍 纬:${userLat.toFixed(4)} 经:${userLon.toFixed(4)}`;
             }, () => {
-                userLat = 33.7521; userLon = 114.8677;
+                // 演示坐标：河南周口
+                userLat = 33.62;
+                userLon = 114.64;
                 updateSatData();
                 infoDiv.textContent = `📍 演示坐标 纬:${userLat} 经:${userLon}`;
             }, { enableHighAccuracy: true });
@@ -450,4 +451,3 @@
     </script>
 </body>
 </html>
-```
