@@ -219,9 +219,9 @@
             document.getElementById('videoModal').style.display = 'none';
         }
 
-        // ===== 卫星参数（中星9号 92.2°E） =====
-        const SAT_LON = 92.2;
-        const SAT_NAME = "中星9号";
+        // ===== 卫星参数（中星9B 101.4°E —— 北斗四代户户通专用） =====
+        const SAT_LON = 101.4;
+        const SAT_NAME = "中星9B (101.4°E)";
         let userLat = null, userLon = null;
         let satAzimuth = 0, satElevation = 0;
         let deviceHeading = 0;
@@ -281,7 +281,7 @@
             if (!userLat || !userLon) return;
             const res = calcAngles(userLat, userLon, SAT_LON);
             satAzimuth = res.azimuth; satElevation = res.elevation;
-            hintDiv.textContent = `🛰️ 中星9号 方位角 ${satAzimuth.toFixed(1)}°`;
+            hintDiv.textContent = `🛰️ 中星9B (101.4°E) 方位角 ${satAzimuth.toFixed(1)}°`;
         }
 
         function handleOrientation(event) {
